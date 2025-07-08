@@ -17,6 +17,7 @@ if (process.env.ANCHOR_PROVIDER_URL != config.SOLANA_NODE || process.env.ANCHOR_
     throw new Error("Missing ANCHOR_PROVIDER_URL and ANCHOR_WALLET environment variables")
 }
 
+
 let ethers;
 let owner;
 let solanaUser;
@@ -44,7 +45,7 @@ describe('Test init', async function () {
             method: 'POST',
             body: JSON.stringify({"method":"neon_getEvmParams","params":[],"id":1,"jsonrpc":"2.0"}),
             headers: { 'Content-Type': 'application/json' }
-        });
+        }); 
         neon_getEvmParams = await neon_getEvmParamsRequest.json();
 
         if (ethers.isAddress(AaveFlashLoanAddress)) {

@@ -17,6 +17,9 @@ contract AaveFlashLoan is FlashLoanSimpleReceiverBase {
 
     uint public lastLoan;
     uint public lastLoanFee;
+    mapping(address => uint256) public userFlashCount;
+    mapping(address => uint16) public userDiscount;
+
 
     constructor(address _addressProvider) FlashLoanSimpleReceiverBase(IPoolAddressesProvider(_addressProvider)) {}
 
@@ -77,4 +80,39 @@ contract AaveFlashLoan is FlashLoanSimpleReceiverBase {
         IERC20ForSpl(asset).approve(address(POOL), amount + premium);
         return true;
     }
+
+
+
+// function buildSwapInstruction(address userToken, address pool, uint64 amount) public pure returns (bytes memory){
+
+
+//     return abi.encodePacked(userToken, pool, amount);
+
+// }
+
+
+function flashLoanWithDiscount(address token, uint256 amount, bytes memory instructionData1, bytes memory instructionData2) external{
+
+    bytes memory params = abi.encode(instructionData1, instructionData2);
+    uint16 premium = _calculatePremiumWithDiscount(msg.sender);
+    
+    POOL.flashLoanSimple(
+        address(this),
+        token,
+        amount,
+        params,
+        premium
+    );
+    
+    userFlashCount[msg.sender]++;
+}
+
+function _calculatePremiumWithDiscount( address user) internal view returns(uint16){
+
+    uint16 basePremium = 0; 
+    uint16 discount = userDiscount[user];
+    return basePremium * (100 - discount) / 100;
+
+
+}
 }

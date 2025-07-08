@@ -21,6 +21,12 @@ npx hardhat keystore set PRIVATE_KEY_OWNER
 npx hardhat keystore set PRIVATE_KEY_SOLANA
 ```
 
+To delete encrypted secret key of this project run this command in the CLI: 
+
+```shell
+npx hardhat keystore delete PRIVATE_KEY_SOLANA
+```
+
 You will be asked to choose a password (which will be used to encrypt provided secrets) and to enter the secret values
 to be encrypted. The keystore password can be added to the `.env` file (as `KEYSTORE_PASSWORD`)  which allows secrets
 to be decrypted automatically when running Hardhat tests and scripts. Otherwise, each running Hardhat test and script

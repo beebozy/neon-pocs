@@ -30,7 +30,7 @@ This is a **Proof of Concept (POC)** demonstrating the integration of **Aave V3 
  ├── IERC20ForSpl.sol      ← ERC20-compatible SPL interface
  └── ICallSolana.sol       ← Precompile interface for Solana calls
 
-📦 Solana (via Anchor + Web3)
+📦 Solana (via Anchor + Web3.js)
  └── Orca Whirlpool SDK    ← Builds swap instructions for USDC/SAMO pools
 ````
 

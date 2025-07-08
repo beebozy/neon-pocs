@@ -1,14 +1,187 @@
-# POC - Aave V3 flash loan with composability requests to Solana
+Here’s a clean, professional, and well-structured **`README.md`** you can use for your project:
 
-The following POC aims to validate that it's possible to request a flash loan from DeFi protocol on Neon EVM _( an Aave V3 fork )_ and to use the loan in the context of Solana. In this example we're requesting a loan of $USDC tokens and swapping them against $SAMO tokens _( both tokens are arbitrary tokens supported by Orca program on Solana )_. At the end of the 2nd swap request to Orca we're repaying back the flash loan and the fee back to the Aave V3 fork. The requesting from Neon EVM to Solana is possible through a composability feature that Neon EVM supports and more specifically Solidity requests to a custom precompile `0xFF00000000000000000000000000000000000006`. More details about the feature [here](https://neonevm.org/docs/composability/common_solana_terminology). Data about the POC:
-* The contract deployed and verified at [https://neon-devnet.blockscout.com/address/0x1f464349eEAC5DbAD27c38cCe222d4D28bAc0824](https://neon-devnet.blockscout.com/address/0x1f464349eEAC5DbAD27c38cCe222d4D28bAc0824)
-* Sample transaction - [https://neon-devnet.blockscout.com/tx/0x5d4a2c7aefebd85f7fc2c726f81496953655238125b7efc535c9efa6189ce8c0](https://neon-devnet.blockscout.com/tx/0x5d4a2c7aefebd85f7fc2c726f81496953655238125b7efc535c9efa6189ce8c0)
+---
 
-### Run the POC
-* ```npx hardhat test mocha test/AaveFlashLoan/AaveFlashLoan.js --network neondevnet```
+````markdown
+# 💸 Aave Flash Loan Composability on Neon EVM (POC)
 
-![alt text](https://github.com/neonlabsorg/neon-pocs/blob/master/contracts/AaveFlashLoan/Flashloan_Infographic.png)
+This is a **Proof of Concept (POC)** demonstrating the integration of **Aave V3 Flash Loans** on the **Neon EVM** with **composable instructions executed on Solana**, such as Orca swaps. The key idea is to use borrowed funds from Aave within the same transaction to interact with Solana-based DeFi protocols via Neon’s `ICallSolana` precompile.
 
-### Secret values setup
+> 🧪 Live Demo Tx: [View on Neon Devnet Block Explorer](https://neon-devnet.blockscout.com/tx/0xd92dfe6810b9af5bb68da601c7651ebeb5cb802cdb89a03e26b37d70635f9896)
 
-See detailed [instructions](../../README.md) for setting up secret values (such as private keys) used to run tests.
+---
+
+## 📌 Features
+
+- Request a **flash loan** from Aave V3 on Neon EVM.
+- Transfer the borrowed tokens to the contract’s **Associated Token Account (ATA)** on Solana.
+- Execute composable instructions on Solana using `CALL_SOLANA.execute(...)`.
+- Use flash loaned funds in **Orca Whirlpool** swaps (USDC ⇄ SAMO).
+- Repay the loan plus premium in the same transaction.
+- Track flash loan usage and apply **user-level premium discounts**.
+
+---
+
+## 🏗️ Project Architecture
+
+```plaintext
+📦 Neon EVM
+ ├── AaveFlashLoan.sol     ← Flash loan logic + Solana execution
+ ├── IERC20ForSpl.sol      ← ERC20-compatible SPL interface
+ └── ICallSolana.sol       ← Precompile interface for Solana calls
+
+📦 Solana (via Anchor + Web3)
+ └── Orca Whirlpool SDK    ← Builds swap instructions for USDC/SAMO pools
+````
+
+---
+
+## ⚙️ Core Smart Contract
+
+### `AaveFlashLoan.sol`
+
+```solidity
+function flashLoanSimple(
+    address token,
+    uint256 amount,
+    bytes memory instructionData1,
+    bytes memory instructionData2
+) public {
+    bytes memory params = abi.encode(instructionData1, instructionData2);
+
+    POOL.flashLoanSimple(
+        address(this),
+        token,
+        amount,
+        params,
+        uint16(0)
+    );
+}
+```
+
+During callback in `executeOperation()`, Solana instructions are executed using:
+
+```solidity
+CALL_SOLANA.execute(0, instructionData1);
+CALL_SOLANA.execute(0, instructionData2);
+```
+
+---
+
+## 🆕 Additional Feature: Flash Loan Discount Mechanism
+
+To encourage user engagement, a discount system is implemented for flash loan fees:
+
+```solidity
+function flashLoanWithDiscount(
+    address token,
+    uint256 amount,
+    bytes memory instructionData1,
+    bytes memory instructionData2
+) external {
+    bytes memory params = abi.encode(instructionData1, instructionData2);
+    uint16 premium = _calculatePremiumWithDiscount(msg.sender);
+    
+    POOL.flashLoanSimple(
+        address(this),
+        token,
+        amount,
+        params,
+        premium
+    );
+
+    userFlashCount[msg.sender]++;
+}
+```
+
+**Discount Calculation:**
+
+```solidity
+function _calculatePremiumWithDiscount(address user) internal view returns(uint16) {
+    uint16 basePremium = 0;
+    uint16 discount = userDiscount[user];
+    return basePremium * (100 - discount) / 100;
+}
+```
+
+---
+
+## 🧪 Test Setup (Hardhat + Solana)
+
+The project includes a test suite that:
+
+* Deploys the contract to Neon EVM.
+* Builds Orca Whirlpool swap instructions on Solana using `@orca-so/whirlpools-sdk`.
+* Sends USDC to the contract to fund fee repayment.
+* Executes a flash loan and swaps USDC → SAMO → USDC.
+
+### 🛠 Notable Libraries Used
+
+* `@orca-so/whirlpools-sdk`
+* `@solana/web3.js`
+* `@coral-xyz/anchor`
+* `ethers`
+* `hardhat`
+
+### 🌍 Environment Variables
+
+Ensure these are set:
+
+```bash
+ANCHOR_PROVIDER_URL=https://api.devnet.solana.com
+ANCHOR_WALLET=./id.json
+```
+
+---
+
+## 🚀 How to Run Locally
+
+1. **Clone repo & install deps**
+
+```bash
+git clone <this-repo>
+cd aave-flashloan-composability
+npm install
+```
+
+2. **Add your Solana wallet to `id.json`**
+
+3. **Set environment**
+
+```bash
+export ANCHOR_PROVIDER_URL=https://api.devnet.solana.com
+export ANCHOR_WALLET=./id.json
+```
+
+4. **Compile & test**
+
+```bash
+npx hardhat compile
+npx hardhat test test/AaveFlashLoan/AaveFlashLoan.js --network neondevnet
+```
+
+---
+
+## 🔗 References
+
+* [Aave V3 Docs](https://docs.aave.com/)
+* [Neon EVM Docs](https://docs.neonfoundation.io/)
+* [Orca Whirlpool SDK](https://github.com/orca-so/whirlpools)
+* [Solana Precompiles in Neon](https://neonlabs.org/docs)
+
+---
+
+## 👨‍💻 Author
+
+> 🧠  Expanded by [@beebozy](https://github.com/beebozy)
+
+---
+
+## 📝 License
+
+[MIT](./LICENSE)
+
+```
+
+
+```
